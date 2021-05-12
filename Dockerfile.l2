@@ -1,0 +1,20 @@
+FROM golang:1.14-buster as builder
+RUN apt-get update && apt-get install -y build-essential
+
+ADD . /go-ethereum
+RUN cd /go-ethereum && make geth
+
+# Pull Geth into a second stage deploy buster container
+FROM golang:1.14-buster
+
+RUN apt-get update && apt-get install -y bash curl jq ca-certificates
+
+COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
+
+EXPOSE 8545 8546 8547
+
+COPY /docker/wait-for-l1.sh /bin
+
+RUN chmod +x /bin/wait-for-l1.sh
+
+ENTRYPOINT ["/bin/wait-for-l1.sh", "geth", "--verbosity=6"]
